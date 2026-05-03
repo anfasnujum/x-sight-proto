@@ -72,3 +72,4 @@ export default defineConfig([
 ])
 ```
 # x-sight-prototype
+# x-sight-proto
