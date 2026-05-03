@@ -16,6 +16,7 @@ import type {
   ForensicCase,
   MainNav,
   Message,
+  DocumentViewerState,
   RightPanelTab,
   TaskStatus,
   ToolId,
@@ -65,6 +66,8 @@ interface ForensicStore {
   toolState: ToolStateSlice
   /** Right inspector tab */
   rightPanelTab: RightPanelTab
+  /** Document preview (Data dump file / synthetic body) */
+  documentViewer: DocumentViewerState | null
   entities: Record<string, CaseEntity[]>
   evidences: Record<string, EvidenceEntry[]>
   notes: Record<string, CaseNote[]>
@@ -83,6 +86,8 @@ interface ForensicStore {
   setBirdsEyeLens: (lens: BirdsEyeLens) => void
   setSearchQuery: (q: string) => void
   setRightPanelTab: (tab: RightPanelTab) => void
+  openDocumentViewer: (doc: DocumentViewerState) => void
+  closeDocumentViewer: () => void
   addCase: (c: ForensicCase) => void
   appendMessage: (
     m: Omit<Message, 'id' | 'createdAt' | 'caseKey'> & {
@@ -159,6 +164,7 @@ export const useForensicStore = create<ForensicStore>((set, get) => ({
   searchQuery: '',
   toolState: initialToolState(),
   rightPanelTab: 'tools',
+  documentViewer: null,
   entities: buildInitialEntities(),
   evidences: buildInitialEvidences(),
   notes: buildInitialNotes(),
@@ -182,6 +188,24 @@ export const useForensicStore = create<ForensicStore>((set, get) => ({
   setSearchQuery: (q) => set({ searchQuery: q }),
 
   setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
+
+  openDocumentViewer: (doc) =>
+    set((s) => {
+      const prev = s.documentViewer
+      if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl)
+      return {
+        documentViewer: doc,
+        rightPanelTab: 'document_viewer',
+        toolState: { ...s.toolState, panelOpen: true },
+      }
+    }),
+
+  closeDocumentViewer: () =>
+    set((s) => {
+      const prev = s.documentViewer
+      if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl)
+      return { documentViewer: null }
+    }),
 
   addCase: (c) =>
     set((s) => ({

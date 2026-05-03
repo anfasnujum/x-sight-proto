@@ -1,4 +1,4 @@
-import { PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { FileText, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { getToolById } from '../data/tools'
 import type { RightPanelTab } from '../types'
 import { useForensicStore } from '../store/useForensicStore'
@@ -7,9 +7,11 @@ import { EvidencesSection } from './panel/EvidencesSection'
 import { NotesSection } from './panel/NotesSection'
 import { TasksSection } from './panel/TasksSection'
 import { ToolsSection } from './panel/ToolsSection'
+import { DocumentViewerSection } from './panel/DocumentViewerSection'
 
 const TABS: { id: RightPanelTab; label: string }[] = [
   { id: 'tools', label: 'Tools' },
+  { id: 'document_viewer', label: 'Viewer' },
   { id: 'entities', label: 'Entities' },
   { id: 'evidences', label: 'Evidences' },
   { id: 'notes', label: 'Notes' },
@@ -22,6 +24,7 @@ export function ToolPanel() {
   const setPanelOpen = useForensicStore((s) => s.setPanelOpen)
   const tab = useForensicStore((s) => s.rightPanelTab)
   const setTab = useForensicStore((s) => s.setRightPanelTab)
+  const documentViewer = useForensicStore((s) => s.documentViewer)
 
   let kicker = 'Inspector'
   let title = ''
@@ -31,6 +34,10 @@ export function ToolPanel() {
       title = activeTool
         ? `Running · ${getToolById(activeTool).name}`
         : 'Available tools & inspectors'
+      break
+    case 'document_viewer':
+      kicker = 'Viewer'
+      title = documentViewer?.title ?? 'Open a file from Data dump'
       break
     case 'entities':
       kicker = 'Entities'
@@ -79,12 +86,15 @@ export function ToolPanel() {
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition ${
                   tab === id
                     ? 'bg-violet-600/35 text-violet-100 ring-1 ring-violet-500/40'
                     : 'bg-zinc-900/80 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
                 }`}
               >
+                {id === 'document_viewer' && (
+                  <FileText className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+                )}
                 {label}
               </button>
             ))}
@@ -98,6 +108,7 @@ export function ToolPanel() {
         </div>
 
         {tab === 'tools' && <ToolsSection />}
+        {tab === 'document_viewer' && <DocumentViewerSection />}
         {tab === 'entities' && <EntitiesSection />}
         {tab === 'evidences' && <EvidencesSection />}
         {tab === 'notes' && <NotesSection />}

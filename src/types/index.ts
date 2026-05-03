@@ -59,7 +59,57 @@ export type BirdsEyeLens =
   | 'timeline'
   | 'evidences'
   | 'notes'
+  | 'data_dump'
   | 'tasks'
+
+/** Data dump — ingested items (mail / post / document) and AI extraction preview */
+export type DataDumpSourceKind = 'mail' | 'post' | 'document'
+
+export interface DataDumpRegistryMatch {
+  registryId: string
+  displayName: string
+  matchStrength: 'high' | 'medium' | 'low'
+  reason: string
+}
+
+export interface DataDumpExtractedEntity {
+  id: string
+  surfaceForm: string
+  inferredCategory: BirdEntityCategory | 'unknown'
+  confidencePct: number
+  registryMatch?: DataDumpRegistryMatch
+}
+
+export interface DataDumpExtractedEvent {
+  id: string
+  title: string
+  date?: string
+  detail: string
+}
+
+export interface DataDumpMappedFact {
+  id: string
+  targetRegistryId?: string
+  targetEntityLabel: string
+  fieldLabel: string
+  fieldValue: string
+}
+
+export interface DataDumpItem {
+  id: string
+  kind: DataDumpSourceKind
+  label: string
+  detailLine?: string
+  capturedAt: string
+  fileName?: string
+  fileSizeLabel?: string
+  mimeType?: string
+  analysisStatus: 'analyzing' | 'complete'
+  aiSummary?: string
+  entities: DataDumpExtractedEntity[]
+  events: DataDumpExtractedEvent[]
+  mappedFacts: DataDumpMappedFact[]
+}
 
 /** Registry row category (bird’s view entities workspace) */
 export type BirdEntityCategory =
@@ -222,10 +272,22 @@ export interface BirdTimelineEvent {
 /** Right inspector drawer primary section */
 export type RightPanelTab =
   | 'tools'
+  | 'document_viewer'
   | 'entities'
   | 'evidences'
   | 'notes'
   | 'tasks'
+
+/** Open file preview in the right inspector (uploaded blob or synthetic seed body) */
+export interface DocumentViewerState {
+  dataDumpItemId: string
+  title: string
+  mimeType?: string
+  /** User-uploaded file — revoke via URL.revokeObjectURL when replaced or closed */
+  objectUrl?: string
+  /** Non-file sources (mail/post seeds) — trusted prototype HTML only */
+  syntheticHtml?: string
+}
 
 export type EntityKind = 'person' | 'company' | 'organization'
 

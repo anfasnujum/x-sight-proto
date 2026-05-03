@@ -1,5 +1,6 @@
 import {
   Activity,
+  Archive,
   Binoculars,
   CircleDot,
   FileStack,
@@ -259,6 +260,13 @@ export function InternalSidebar() {
             >
               <StickyNote className="h-4 w-4 shrink-0" />
               Notes
+            </NavRow>
+            <NavRow
+              active={birdsEyeLens === 'data_dump'}
+              onClick={() => setBirdsEyeLens('data_dump')}
+            >
+              <Archive className="h-4 w-4 shrink-0" />
+              Data dump
             </NavRow>
             <NavRow
               active={birdsEyeLens === 'tasks'}

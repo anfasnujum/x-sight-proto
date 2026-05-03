@@ -3,6 +3,7 @@ import { BirdEntitiesView } from './birds/BirdEntitiesView'
 import { BirdTimelineLensView } from './birds/BirdTimelineLensView'
 import { BirdEvidencesLensView } from './birds/BirdEvidencesLensView'
 import { BirdNotesLensView } from './birds/BirdNotesLensView'
+import { BirdDataDumpLensView } from './birds/BirdDataDumpLensView'
 import { BirdTasksLensView } from './birds/BirdTasksLensView'
 import { useForensicStore } from '../store/useForensicStore'
 
@@ -25,6 +26,7 @@ export function BirdsEyeView() {
         {lens === 'timeline' && <BirdTimelineLensView />}
         {lens === 'evidences' && <BirdEvidencesLensView />}
         {lens === 'notes' && <BirdNotesLensView />}
+        {lens === 'data_dump' && <BirdDataDumpLensView />}
         {lens === 'tasks' && <BirdTasksLensView />}
       </div>
     </div>
