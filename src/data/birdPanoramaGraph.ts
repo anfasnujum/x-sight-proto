@@ -72,6 +72,7 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r-din',
+        kind: 'registry',
         label: 'DIN / directorship',
         detail:
           'MCA master data: managing director; matches wire KYC signatory where filed.',
@@ -85,6 +86,7 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r-hold',
+        kind: 'transactions',
         label: 'Offshore counterparty',
         detail:
           'Investigation link: Indian sub wires vs BVI holding — benificial ownership review.',
@@ -98,12 +100,14 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r1',
+        kind: 'common_humans',
         label: 'Authorized signatory',
         detail:
           'Wire approvals filed Mar–Apr 2026; matches filing signature card.',
       },
       {
         id: 'r2',
+        kind: 'transactions',
         label: 'Beneficiary overlap',
         detail:
           'Shared token with Caribbean FX corridor per Transaction Analyzer.',
@@ -117,6 +121,7 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r3',
+        kind: 'transactions',
         label: 'Correspondent routing',
         detail: 'Three wires within 90 minutes through same beneficiary rail.',
       },
@@ -129,11 +134,13 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r4',
+        kind: 'registry',
         label: 'Nominee layer',
         detail: 'Register shows Northwind as director shell for Alpha Shell.',
       },
       {
         id: 'r5',
+        kind: 'documents',
         label: 'Document cross-ref',
         detail: 'Schedule C in trust deed references same account token.',
       },
@@ -146,6 +153,7 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r6',
+        kind: 'documents',
         label: 'Hash linkage',
         detail: 'PDF metadata cluster ties nominee deeds to doc hash Ω.',
       },
@@ -158,6 +166,7 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r7',
+        kind: 'common_humans',
         label: 'Vendor compliance',
         detail: 'Primary contact on recall cohort supplier audits.',
       },
@@ -170,11 +179,13 @@ export const PANORAMA_EDGES: BirdGraphEdge[] = [
     relationships: [
       {
         id: 'r8',
+        kind: 'documents',
         label: 'Shared artifact',
         detail: 'Invoice hashes appear in both FX pack and hash cluster Ω.',
       },
       {
         id: 'r9',
+        kind: 'events',
         label: 'Temporal proximity',
         detail: 'Overlapping windows on the entity chronology (transfers vs filings).',
       },

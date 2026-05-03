@@ -344,8 +344,36 @@ export interface BirdBoardEntity {
   cy: number
 }
 
+/** Edge relationship kinds for panorama filters (modal + edge visibility). */
+export type PanoramaRelationKind =
+  | 'events'
+  | 'transactions'
+  | 'common_humans'
+  | 'documents'
+  | 'registry'
+
+export const PANORAMA_RELATION_KIND_ORDER: PanoramaRelationKind[] = [
+  'events',
+  'transactions',
+  'common_humans',
+  'documents',
+  'registry',
+]
+
+export const PANORAMA_RELATION_KIND_LABELS: Record<
+  PanoramaRelationKind,
+  string
+> = {
+  events: 'Events',
+  transactions: 'Transactions',
+  common_humans: 'Common human entities',
+  documents: 'Documents & artifacts',
+  registry: 'Registry & filings',
+}
+
 export interface BirdRelationshipDetail {
   id: string
+  kind: PanoramaRelationKind
   /** Relationship category shown in modal */
   label: string
   detail: string

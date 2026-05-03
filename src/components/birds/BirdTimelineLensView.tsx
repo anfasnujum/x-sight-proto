@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Search, X } from 'lucide-react'
 import type {
   BirdEntityTimelineKind,
   BirdTimelineEvent,
@@ -96,6 +97,9 @@ export function BirdTimelineLensView() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [entityQuery, setEntityQuery] = useState('')
+  const [entityPickerOpen, setEntityPickerOpen] = useState(false)
+  const entityPickerRef = useRef<HTMLDivElement>(null)
 
   const nameById = useMemo(() => {
     const m = new Map<string, string>()
@@ -118,6 +122,28 @@ export function BirdTimelineLensView() {
       }
     }
     return [...set].sort((a, b) => a.localeCompare(b))
+  }, [])
+
+  const entityQueryNorm = entityQuery.trim().toLowerCase()
+
+  /** Registry rows not yet in the filter; optional name search */
+  const entityPickerOptions = useMemo(() => {
+    const sel = new Set(selectedEntities)
+    const available = profilesSorted.filter((p) => !sel.has(p.id))
+    if (!entityQueryNorm) return available
+    return available.filter((p) =>
+      p.legalName.toLowerCase().includes(entityQueryNorm),
+    )
+  }, [profilesSorted, selectedEntities, entityQueryNorm])
+
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      const el = entityPickerRef.current
+      if (!el || !(e.target instanceof Node)) return
+      if (!el.contains(e.target)) setEntityPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [])
 
   const filteredSorted = useMemo(() => {
@@ -157,10 +183,14 @@ export function BirdTimelineLensView() {
     })
   }
 
-  function toggleEntity(id: string) {
+  function addEntity(id: string) {
     setSelectedEntities((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(id) ? prev : [...prev, id],
     )
+  }
+
+  function removeEntity(id: string) {
+    setSelectedEntities((prev) => prev.filter((x) => x !== id))
   }
 
   function toggleLocation(loc: string) {
@@ -191,7 +221,7 @@ export function BirdTimelineLensView() {
           social posts (including posts that describe another event)
         </span>
         , and places. Use filters to require{' '}
-        <span className="text-zinc-400">every</span> checked entity on the same
+        <span className="text-zinc-400">every</span> selected entity on the same
         event, narrow dates, and match{' '}
         <span className="text-zinc-400">any</span> checked location.
       </p>
@@ -217,30 +247,86 @@ export function BirdTimelineLensView() {
         </div>
 
         <div className="mt-4 grid gap-6 lg:grid-cols-3">
-          <div>
+          <div ref={entityPickerRef} className="min-w-0">
             <p className="mb-2 text-[11px] font-medium text-zinc-400">
               Entities —{' '}
               <span className="font-normal text-zinc-600">
-                event must include all checked
+                event must include all selected
               </span>
             </p>
-            <div className="scrollbar-thin max-h-44 space-y-2 overflow-y-auto rounded-lg border border-zinc-800/90 bg-zinc-950/80 p-2">
-              {profilesSorted.map((p) => (
-                <label
-                  key={p.id}
-                  className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 hover:bg-zinc-900/80"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedEntities.includes(p.id)}
-                    onChange={() => toggleEntity(p.id)}
-                    className="mt-0.5 rounded border-zinc-600"
-                  />
-                  <span className="text-xs leading-snug text-zinc-300">
-                    {p.legalName}
+            {selectedEntities.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {selectedEntities.map((id) => (
+                  <span
+                    key={id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-zinc-700/90 bg-zinc-900/90 py-0.5 pl-2.5 pr-1 text-[11px] text-zinc-200"
+                  >
+                    <span className="truncate">
+                      {nameById.get(id) ?? id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeEntity(id)}
+                      className="shrink-0 rounded-full p-0.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                      aria-label={`Remove ${nameById.get(id) ?? id}`}
+                    >
+                      <X className="h-3 w-3" strokeWidth={2.5} />
+                    </button>
                   </span>
-                </label>
-              ))}
+                ))}
+              </div>
+            )}
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={entityQuery}
+                onChange={(e) => {
+                  setEntityQuery(e.target.value)
+                  setEntityPickerOpen(true)
+                }}
+                onFocus={() => setEntityPickerOpen(true)}
+                placeholder="Search dossier entities to add…"
+                autoComplete="off"
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/90 py-2 pl-8 pr-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+              />
+              {entityPickerOpen && (
+                <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-lg shadow-black/40">
+                  {entityPickerOptions.length === 0 ? (
+                    <p className="px-3 py-2.5 text-xs text-zinc-500">
+                      {profilesSorted.length === 0
+                        ? 'No entities in registry.'
+                        : selectedEntities.length >= profilesSorted.length
+                          ? 'All entities are already in the filter.'
+                          : entityQueryNorm
+                            ? 'No matches — try a different search.'
+                            : 'No remaining entities to add.'}
+                    </p>
+                  ) : (
+                    <ul className="scrollbar-thin max-h-44 overflow-y-auto py-1">
+                      {entityPickerOptions.map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              addEntity(p.id)
+                              setEntityQuery('')
+                              setEntityPickerOpen(false)
+                            }}
+                            className="flex w-full px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-800/90"
+                          >
+                            {p.legalName}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

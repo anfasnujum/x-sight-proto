@@ -6,7 +6,15 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { BirdBoardEntity, BirdGraphEdge, EntityKind } from '../../types'
+import {
+  type BirdBoardEntity,
+  type BirdGraphEdge,
+  type BirdRelationshipDetail,
+  type EntityKind,
+  type PanoramaRelationKind,
+  PANORAMA_RELATION_KIND_LABELS,
+  PANORAMA_RELATION_KIND_ORDER,
+} from '../../types'
 import {
   PANORAMA_BOARD_HEIGHT,
   PANORAMA_BOARD_WIDTH,
@@ -39,6 +47,15 @@ function entityById(id: string): BirdBoardEntity | undefined {
   return PANORAMA_ENTITIES.find((e) => e.id === id)
 }
 
+function filterRelationshipDetails(
+  relationships: BirdRelationshipDetail[],
+  relationsAll: boolean,
+  relationPick: Set<PanoramaRelationKind>,
+): BirdRelationshipDetail[] {
+  if (relationsAll) return relationships
+  return relationships.filter((r) => relationPick.has(r.kind))
+}
+
 function EntityCard({ node }: { node: BirdBoardEntity }) {
   const meta = KIND_META[node.kind]
   const Icon = meta.Icon
@@ -66,9 +83,11 @@ function EntityCard({ node }: { node: BirdBoardEntity }) {
 
 function RelationshipsModal({
   edge,
+  relationsAll,
   onClose,
 }: {
   edge: BirdGraphEdge | null
+  relationsAll: boolean
   onClose: () => void
 }) {
   if (!edge) return null
@@ -76,6 +95,7 @@ function RelationshipsModal({
   const b = entityById(edge.targetId)
   const titleA = a?.name ?? edge.sourceId
   const titleB = b?.name ?? edge.targetId
+  const visible = edge.relationships
 
   return (
     <div
@@ -116,68 +136,254 @@ function RelationshipsModal({
         </div>
         <div className="scrollbar-thin max-h-[min(60vh,520px)] overflow-y-auto px-5 py-4">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            All relationships along this edge ({edge.relationships.length})
+            {relationsAll
+              ? `All relationships along this edge (${visible.length})`
+              : `Relationships matching filters (${visible.length})`}
           </p>
-          <ul className="space-y-3">
-            {edge.relationships.map((r) => (
-              <li
-                key={r.id}
-                className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3"
-              >
-                <p className="text-sm font-medium text-zinc-100">{r.label}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
-                  {r.detail}
-                </p>
-              </li>
-            ))}
-          </ul>
+          {visible.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              No relationships on this edge for the current filters.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {visible.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    {PANORAMA_RELATION_KIND_LABELS[r.kind]}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-zinc-100">
+                    {r.label}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+                    {r.detail}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
+const ALL_ENTITY_IDS = new Set(PANORAMA_ENTITIES.map((e) => e.id))
+
 export function PanoramaBoard() {
-  const [activeEdge, setActiveEdge] = useState<BirdGraphEdge | null>(null)
+  const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null)
 
-  const closeModal = useCallback(() => setActiveEdge(null), [])
+  const [entitiesAll, setEntitiesAll] = useState(true)
+  const [entityPick, setEntityPick] = useState<Set<string>>(
+    () => new Set(ALL_ENTITY_IDS),
+  )
 
-  useEffect(() => {
-    if (!activeEdge) return
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeModal()
+  const [relationsAll, setRelationsAll] = useState(true)
+  const [relationPick, setRelationPick] = useState<
+    Set<PanoramaRelationKind>
+  >(() => new Set(PANORAMA_RELATION_KIND_ORDER))
+
+  const closeModal = useCallback(() => setActiveEdgeId(null), [])
+
+  const visibleEntityIds = useMemo(() => {
+    if (entitiesAll) return ALL_ENTITY_IDS
+    return entityPick
+  }, [entitiesAll, entityPick])
+
+  const visibleEntities = useMemo(
+    () => PANORAMA_ENTITIES.filter((e) => visibleEntityIds.has(e.id)),
+    [visibleEntityIds],
+  )
+
+  const filteredEdges = useMemo(() => {
+    const out: BirdGraphEdge[] = []
+    for (const edge of PANORAMA_EDGES) {
+      if (
+        !visibleEntityIds.has(edge.sourceId) ||
+        !visibleEntityIds.has(edge.targetId)
+      ) {
+        continue
+      }
+      const rels = filterRelationshipDetails(
+        edge.relationships,
+        relationsAll,
+        relationPick,
+      )
+      if (rels.length === 0) continue
+      out.push({ ...edge, relationships: rels })
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [activeEdge, closeModal])
+    return out
+  }, [visibleEntityIds, relationsAll, relationPick])
+
+  const activeEdge = useMemo(() => {
+    if (!activeEdgeId) return null
+    return filteredEdges.find((e) => e.id === activeEdgeId) ?? null
+  }, [activeEdgeId, filteredEdges])
 
   const lines = useMemo(() => {
-    return PANORAMA_EDGES.map((edge) => {
-      const from = entityById(edge.sourceId)
-      const to = entityById(edge.targetId)
-      if (!from || !to) return null
-      return { edge, x1: from.cx, y1: from.cy, x2: to.cx, y2: to.cy }
-    }).filter(Boolean) as {
+    return filteredEdges
+      .map((edge) => {
+        const from = entityById(edge.sourceId)
+        const to = entityById(edge.targetId)
+        if (!from || !to) return null
+        return { edge, x1: from.cx, y1: from.cy, x2: to.cx, y2: to.cy }
+      })
+      .filter(Boolean) as {
       edge: BirdGraphEdge
       x1: number
       y1: number
       x2: number
       y2: number
     }[]
-  }, [])
+  }, [filteredEdges])
+
+  useEffect(() => {
+    if (!activeEdgeId) return
+    if (!filteredEdges.some((e) => e.id === activeEdgeId)) {
+      setActiveEdgeId(null)
+    }
+  }, [filteredEdges, activeEdgeId])
+
+  useEffect(() => {
+    if (!activeEdgeId) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeModal()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [activeEdgeId, closeModal])
 
   const openEdge = useCallback((edge: BirdGraphEdge) => {
-    setActiveEdge(edge)
+    setActiveEdgeId(edge.id)
+  }, [])
+
+  const toggleEntityId = useCallback((id: string) => {
+    setEntityPick((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleRelationKind = useCallback((k: PanoramaRelationKind) => {
+    setRelationPick((prev) => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k)
+      else next.add(k)
+      return next
+    })
+  }, [])
+
+  const onEntitiesAllChange = useCallback((checked: boolean) => {
+    if (checked) {
+      setEntitiesAll(true)
+    } else {
+      setEntitiesAll(false)
+      setEntityPick((prev) =>
+        prev.size === 0 ? new Set(ALL_ENTITY_IDS) : prev,
+      )
+    }
+  }, [])
+
+  const onRelationsAllChange = useCallback((checked: boolean) => {
+    if (checked) {
+      setRelationsAll(true)
+    } else {
+      setRelationsAll(false)
+      setRelationPick((prev) =>
+        prev.size === 0 ? new Set(PANORAMA_RELATION_KIND_ORDER) : prev,
+      )
+    }
   }, [])
 
   return (
     <>
       <div className="mt-6 rounded-xl border border-zinc-800/90 bg-zinc-950/40 shadow-soft">
         <div className="border-b border-zinc-800/90 px-4 py-3">
+          <p className="text-sm font-medium text-zinc-200">Configure</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Limit which entities and relationship types appear on the board and
+            in the edge inspector.
+          </p>
+        </div>
+        <div className="grid gap-6 px-4 py-4 md:grid-cols-2">
+          <fieldset className="min-w-0 space-y-3">
+            <legend className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Entities
+            </legend>
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-zinc-200">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/40"
+                checked={entitiesAll}
+                onChange={(e) => onEntitiesAllChange(e.target.checked)}
+              />
+              <span>All</span>
+            </label>
+            {!entitiesAll && (
+              <ul className="max-h-48 space-y-2 overflow-y-auto pr-1 scrollbar-thin">
+                {PANORAMA_ENTITIES.map((e) => (
+                  <li key={e.id}>
+                    <label className="flex cursor-pointer items-start gap-2.5 text-sm text-zinc-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/40"
+                        checked={entityPick.has(e.id)}
+                        onChange={() => toggleEntityId(e.id)}
+                      />
+                      <span className="leading-snug">{e.name}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </fieldset>
+
+          <fieldset className="min-w-0 space-y-3">
+            <legend className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Relations
+            </legend>
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-zinc-200">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/40"
+                checked={relationsAll}
+                onChange={(e) => onRelationsAllChange(e.target.checked)}
+              />
+              <span>All</span>
+            </label>
+            {!relationsAll && (
+              <ul className="max-h-48 space-y-2 overflow-y-auto pr-1 scrollbar-thin">
+                {PANORAMA_RELATION_KIND_ORDER.map((k) => (
+                  <li key={k}>
+                    <label className="flex cursor-pointer items-start gap-2.5 text-sm text-zinc-300">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/40"
+                        checked={relationPick.has(k)}
+                        onChange={() => toggleRelationKind(k)}
+                      />
+                      <span className="leading-snug">
+                        {PANORAMA_RELATION_KIND_LABELS[k]}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </fieldset>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-zinc-800/90 bg-zinc-950/40 shadow-soft">
+        <div className="border-b border-zinc-800/90 px-4 py-3">
           <p className="text-sm font-medium text-zinc-200">Panorama board</p>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Scroll to explore. Click an edge to inspect every relationship
-            between two entities.
+            Scroll to explore. Click an edge to inspect relationships between
+            two entities (respects your relation filters).
           </p>
         </div>
         <div className="scrollbar-thin max-h-[min(72vh,680px)] overflow-auto">
@@ -241,14 +447,18 @@ export function PanoramaBoard() {
               })}
             </svg>
 
-            {PANORAMA_ENTITIES.map((node) => (
+            {visibleEntities.map((node) => (
               <EntityCard key={node.id} node={node} />
             ))}
           </div>
         </div>
       </div>
 
-      <RelationshipsModal edge={activeEdge} onClose={closeModal} />
+      <RelationshipsModal
+        edge={activeEdge}
+        relationsAll={relationsAll}
+        onClose={closeModal}
+      />
     </>
   )
 }
